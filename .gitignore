@@ -1,0 +1,78 @@
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ─── Environment / secrets ───────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── Build outputs ───────────────────────────────────────────────────────────
+dist/
+build/
+.next/
+.expo/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── IDE / Claude ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.claude/
+
+# ─── Terraform ───────────────────────────────────────────────────────────────
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/*.tfvars
+infra/*.tfvars.json
+# keep terraform.tfstate in repo (single dev) — remove this line for team use
+
+# ─── Flutter / Dart ──────────────────────────────────────────────────────────
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.pub-cache/
+mobile/.pub/
+mobile/coverage/
+mobile/**/*.symbols
+mobile/**/*.map.json
+
+# iOS secrets (contain API keys)
+mobile/ios/Flutter/Debug.xcconfig
+mobile/ios/Flutter/Release.xcconfig
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/ephemeral/
+mobile/ios/Flutter/flutter_export_environment.sh
+mobile/ios/Pods/
+mobile/ios/Runner/GeneratedPluginRegistrant.*
+mobile/ios/xcuserdata/
+mobile/ios/DerivedData/
+
+# Android secrets
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/**/*.keystore
+mobile/android/**/*.jks
+mobile/android/.gradle/
+mobile/android/captures/
+mobile/android/GeneratedPluginRegistrant.java
+mobile/android/.cxx/
+mobile/android/app/debug/
+mobile/android/app/profile/
+mobile/android/app/release/
+
+# ─── Prisma ──────────────────────────────────────────────────────────────────
+api/node_modules/
