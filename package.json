@@ -3,14 +3,10 @@
   "private": true,
   "workspaces": [
     "mobile",
-    "admin",
-    "api",
-    "nextjs"
+    "app"
   ],
   "scripts": {
     "mobile": "yarn workspace mobile start",
-    "admin": "yarn workspace admin dev",
-    "api": "yarn workspace api dev",
-    "nextjs": "yarn workspace nextjs dev"
+    "app": "yarn workspace app dev"
   }
 }

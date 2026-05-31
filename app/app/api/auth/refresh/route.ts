@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAuth } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   let refreshToken: string;
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   }
   if (!refreshToken) return NextResponse.json({ error: 'refreshToken required' }, { status: 400 });
 
-  const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+  const { data, error } = await supabaseAuth.auth.refreshSession({ refresh_token: refreshToken });
   if (error || !data.session) {
     return NextResponse.json({ error: 'Refresh failed' }, { status: 401 });
   }
