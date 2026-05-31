@@ -1,0 +1,125 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { getUsers, createUser, deleteUser, type User } from '@/lib/admin-api';
+
+export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [form, setForm] = useState({ email: '', password: '' });
+
+  useEffect(() => { fetchUsers(); }, []);
+
+  async function fetchUsers() {
+    try {
+      setUsers(await getUsers());
+    } catch (e: unknown) {
+      setListError(e instanceof Error ? e.message : 'Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    setCreating(true);
+    setCreateError('');
+    try {
+      await createUser(form);
+      setForm({ email: '', password: '' });
+      await fetchUsers();
+    } catch (e: unknown) {
+      setCreateError(e instanceof Error ? e.message : 'Failed to create user');
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function remove(id: string, email: string) {
+    if (!confirm(`Delete user ${email}? This cannot be undone.`)) return;
+    try {
+      await deleteUser(id);
+      setUsers(u => u.filter(x => x.id !== id));
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to delete user');
+    }
+  }
+
+  return (
+    <div>
+      <h1>Users</h1>
+
+      <div className="panel">
+        <h2>Add user</h2>
+        <form onSubmit={create}>
+          <div className="fields">
+            <div className="field">
+              <label>Email</label>
+              <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} type="email" placeholder="user@example.com" required />
+            </div>
+            <div className="field">
+              <label>Password</label>
+              <input value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} type="password" placeholder="Min 8 characters" required minLength={8} />
+            </div>
+          </div>
+          {createError && <p className="error">{createError}</p>}
+          <button type="submit" disabled={creating}>{creating ? 'Creating...' : 'Create user'}</button>
+        </form>
+      </div>
+
+      <div className="page-header">
+        <h2>All users</h2>
+        <span className="count">{users.length} total</span>
+      </div>
+
+      {loading && <p className="state">Loading...</p>}
+      {listError && <p className="state error">{listError}</p>}
+      {!loading && !listError && (
+        <table>
+          <thead>
+            <tr><th>Email</th><th>Joined</th><th>Last sign in</th><th>ID</th><th></th></tr>
+          </thead>
+          <tbody>
+            {users.map(user => (
+              <tr key={user.id}>
+                <td className="email">{user.email}</td>
+                <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                <td>{user.lastSignIn ? new Date(user.lastSignIn).toLocaleDateString() : '—'}</td>
+                <td className="mono">{user.id.slice(0, 8)}…</td>
+                <td><button className="delete" onClick={() => remove(user.id, user.email)}>Delete</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <style jsx>{`
+        h1 { font-size: 24px; font-weight: 700; margin-bottom: 24px; }
+        h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+        .page-header { display: flex; align-items: baseline; gap: 12px; margin: 28px 0 16px; }
+        .count { color: #888; font-size: 14px; }
+        .panel { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 28px; }
+        .fields { display: flex; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+        .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
+        label { font-size: 12px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+        input { padding: 10px 12px; border: 1.5px solid #e5e5e5; border-radius: 8px; font-size: 14px; outline: none; }
+        input:focus { border-color: #22c55e; }
+        button { padding: 10px 20px; background: #22c55e; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .error { color: #dc2626; font-size: 13px; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        th { text-align: left; padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; background: #fafafa; border-bottom: 1px solid #eee; }
+        td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 14px; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        .email { font-weight: 500; }
+        .mono { font-family: monospace; font-size: 12px; color: #999; }
+        .delete { padding: 5px 12px; background: #fff; color: #dc2626; border: 1px solid #dc2626; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .delete:hover { background: #fee2e2; }
+        .state { padding: 48px; text-align: center; color: #888; }
+      `}</style>
+    </div>
+  );
+}

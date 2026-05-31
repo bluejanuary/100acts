@@ -4,11 +4,13 @@
   "workspaces": [
     "mobile",
     "admin",
-    "api"
+    "api",
+    "nextjs"
   ],
   "scripts": {
     "mobile": "yarn workspace mobile start",
     "admin": "yarn workspace admin dev",
-    "api": "yarn workspace api dev"
+    "api": "yarn workspace api dev",
+    "nextjs": "yarn workspace nextjs dev"
   }
 }
