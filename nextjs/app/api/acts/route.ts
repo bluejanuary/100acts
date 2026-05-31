@@ -20,7 +20,12 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  const body = await req.json();
+  let body: { category?: unknown; photoUrl?: unknown; lat?: unknown; long?: unknown; gpsAccuracy?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
   const { category, photoUrl, lat, long, gpsAccuracy } = body;
 
   if (!category || !photoUrl || lat == null || long == null) {

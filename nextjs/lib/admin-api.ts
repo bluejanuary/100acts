@@ -9,6 +9,8 @@ async function request<T = unknown>(path: string, options: RequestInit = {}): Pr
   if (res.status === 401) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
+      // Clear the session cookie so middleware doesn't redirect back after /login
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
       window.location.href = '/login';
     }
     throw new Error('Session expired');

@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json();
+  let email: string, password: string;
+  try {
+    ({ email, password } = await req.json());
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
   if (!email || !password) {
     return NextResponse.json({ error: 'email and password required' }, { status: 400 });
   }

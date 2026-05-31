@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const NAV = [
   { href: '/analytics', label: 'Analytics', icon: '📊' },
@@ -14,10 +14,18 @@ const NAV = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem('auth_token')) router.replace('/login');
+    if (!localStorage.getItem('auth_token')) {
+      router.replace('/login');
+    } else {
+      setReady(true);
+    }
   }, [router]);
+
+  // Render nothing while the auth check is in progress — avoids flash of admin UI
+  if (!ready) return null;
 
   async function logout() {
     localStorage.removeItem('auth_token');

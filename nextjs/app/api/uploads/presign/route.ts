@@ -8,7 +8,12 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  const { filename, contentType } = await req.json();
+  let filename: string, contentType: string;
+  try {
+    ({ filename, contentType } = await req.json());
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
   if (!filename || !contentType) {
     return NextResponse.json({ error: 'filename and contentType required' }, { status: 400 });
   }

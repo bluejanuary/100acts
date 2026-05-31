@@ -18,7 +18,12 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  const { email, password } = await req.json();
+  let email: string, password: string;
+  try {
+    ({ email, password } = await req.json());
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
   if (!email || !password || password.length < 8) {
     return NextResponse.json({ error: 'Valid email and password (min 8 chars) required' }, { status: 400 });
   }

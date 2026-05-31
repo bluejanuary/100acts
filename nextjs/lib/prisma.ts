@@ -10,4 +10,6 @@ function createClient() {
 
 export const prisma = globalForPrisma.prisma ?? createClient();
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// Always cache — in serverless, the container is reused between requests
+// and we must not create a new connection on every invocation
+globalForPrisma.prisma = prisma;
