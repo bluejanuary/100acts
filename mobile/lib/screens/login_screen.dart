@@ -29,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       if (!_isLogin) await signup(_email.text.trim(), _password.text);
       final data = await login(_email.text.trim(), _password.text);
-      await TokenStorage.save(data['token']);
+      await TokenStorage.save(data['token'], data['refreshToken'] ?? '');
       final user = await getMe();
       await UserStorage.save(user);
       widget.onAuth();

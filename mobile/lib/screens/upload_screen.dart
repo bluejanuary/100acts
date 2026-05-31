@@ -2,14 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import '../models/system_config.dart';
 import '../services/api.dart';
-
-const _categories = [
-  {'id': 'tree_mangrove', 'label': 'Tree / Mangrove'},
-  {'id': 'wildlife', 'label': 'Wildlife'},
-  {'id': 'recycling', 'label': 'Recycling'},
-  {'id': 'litter_cleanup', 'label': 'Litter Cleanup'},
-];
+import '../services/system_config_storage.dart';
 
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
@@ -19,9 +14,39 @@ class UploadScreen extends StatefulWidget {
 }
 
 class _UploadScreenState extends State<UploadScreen> {
-  String? _category;
+  List<CategoryConfig> _categories = [];
+  bool _categoriesLoading = true;
+  String? _selectedSlug;
   XFile? _photo;
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    if (mounted) setState(() => _categoriesLoading = true);
+    try {
+      var config = await SystemConfigStorage.get();
+      debugPrint('[config] cached: ${config?.categories.length} categories');
+
+      if (config == null || config.categories.isEmpty) {
+        debugPrint('[config] cache empty — fetching from /config');
+        config = await getSystemConfig();
+        debugPrint('[config] fetched ${config.categories.length} categories: ${config.categories.map((c) => c.slug).join(', ')}');
+        await SystemConfigStorage.save(config);
+      }
+
+      if (mounted) setState(() => _categories = config!.categories);
+    } catch (e) {
+      debugPrint('[config] error: $e');
+      _snack('Could not load categories');
+    } finally {
+      if (mounted) setState(() => _categoriesLoading = false);
+    }
+  }
 
   Future<void> _pickPhoto() async {
     final picker = ImagePicker();
@@ -30,18 +55,10 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _submit() async {
-    if (_category == null) {
-      _snack('Please select a category');
-      return;
-    }
-    if (_photo == null) {
-      _snack('Please take a photo');
-      return;
-    }
+    if (_selectedSlug == null || _photo == null) return;
 
     setState(() => _loading = true);
     try {
-      // Get GPS
       final permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
@@ -52,17 +69,14 @@ class _UploadScreenState extends State<UploadScreen> {
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
-      // Get pre-signed URL
       final filename = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final presign = await getPresignedUrl(filename);
 
-      // Upload to S3
       final bytes = await File(_photo!.path).readAsBytes();
       await uploadToS3(presign['uploadUrl'], bytes);
 
-      // Save act
       await createAct(
-        category: _category!,
+        category: _selectedSlug!,
         photoUrl: presign['publicUrl'],
         lat: pos.latitude,
         long: pos.longitude,
@@ -73,7 +87,7 @@ class _UploadScreenState extends State<UploadScreen> {
         _snack('Act recorded successfully!');
         setState(() {
           _photo = null;
-          _category = null;
+          _selectedSlug = null;
         });
       }
     } catch (e) {
@@ -89,80 +103,129 @@ class _UploadScreenState extends State<UploadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final categorySelected = _selectedSlug != null;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(title: const Text('Log Act'), backgroundColor: Colors.white),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('SELECT CATEGORY',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.5)),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: _categories.map((cat) {
-                final selected = _category == cat['id'];
-                return GestureDetector(
-                  onTap: () => setState(() => _category = cat['id']),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: selected ? const Color(0xFFf0fdf4) : const Color(0xFFf9f9f9),
-                      border: Border.all(
-                        color: selected ? const Color(0xFF22c55e) : const Color(0xFFdddddd),
-                        width: 1.5,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Force fetch from API and update cache
+          try {
+            final config = await getSystemConfig();
+            debugPrint('[config] refreshed: ${config.categories.length} categories');
+            await SystemConfigStorage.save(config);
+            if (mounted) setState(() => _categories = config.categories);
+          } catch (e) {
+            debugPrint('[config] refresh error: $e');
+            _snack('Could not refresh categories');
+          }
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Category dropdown ────────────────────────────────────────
+              const Text(
+                'CATEGORY',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 10),
+              _categoriesLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: _selectedSlug != null ? const Color(0xFF22c55e) : const Color(0xFFdddddd),
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      cat['label']!,
-                      style: TextStyle(
-                        color: selected ? const Color(0xFF16a34a) : const Color(0xFF444444),
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                      child: DropdownButton<String>(
+                        value: _selectedSlug,
+                        hint: const Text('Select a category'),
+                        isExpanded: true,
+                        underline: const SizedBox.shrink(),
+                        items: _categories.map((cat) {
+                          return DropdownMenuItem<String>(
+                            value: cat.slug,
+                            child: Text(cat.name),
+                          );
+                        }).toList(),
+                        onChanged: (val) => setState(() => _selectedSlug = val),
                       ),
                     ),
+
+              const SizedBox(height: 28),
+
+              // ── Camera box ───────────────────────────────────────────────
+              const Text(
+                'PHOTO',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: categorySelected ? _pickPhoto : null,
+                child: Container(
+                  height: 220,
+                  decoration: BoxDecoration(
+                    color: categorySelected ? const Color(0xFFfafafa) : const Color(0xFFf0f0f0),
+                    border: Border.all(
+                      color: categorySelected ? const Color(0xFFdddddd) : const Color(0xFFe5e5e5),
+                      width: 1.5,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 28),
-            GestureDetector(
-              onTap: _pickPhoto,
-              child: Container(
-                height: 220,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFfafafa),
-                  border: Border.all(color: const Color(0xFFdddddd), width: 1.5),
-                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.hardEdge,
+                  child: _photo != null
+                      ? Image.file(File(_photo!.path), fit: BoxFit.cover)
+                      : Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.camera_alt_outlined,
+                                size: 36,
+                                color: categorySelected ? Colors.grey : const Color(0xFFcccccc),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                categorySelected ? 'Tap to take photo' : 'Select a category first',
+                                style: TextStyle(
+                                  color: categorySelected ? Colors.grey : const Color(0xFFcccccc),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                 ),
-                clipBehavior: Clip.hardEdge,
-                child: _photo != null
-                    ? Image.file(File(_photo!.path), fit: BoxFit.cover)
-                    : const Center(
-                        child: Text('Tap to take photo', style: TextStyle(color: Colors.grey)),
-                      ),
               ),
-            ),
-            const SizedBox(height: 28),
-            ElevatedButton(
-              onPressed: _loading ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF22c55e),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+              const SizedBox(height: 28),
+
+              // ── Submit ───────────────────────────────────────────────────
+              ElevatedButton(
+                onPressed: (_loading || !categorySelected || _photo == null) ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF22c55e),
+                  disabledBackgroundColor: const Color(0xFFd1d5db),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text('Submit Act', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               ),
-              child: _loading
-                  ? const SizedBox(
-                      height: 20, width: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Submit Act',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import { actRoutes } from './routes/acts';
 import { uploadRoutes } from './routes/uploads';
 import { authRoutes } from './routes/auth';
 import { adminRoutes } from './routes/admin';
+import { configRoutes } from './routes/config';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -37,6 +38,7 @@ app.register(authRoutes);
 app.register(adminRoutes);
 app.register(actRoutes);
 app.register(uploadRoutes);
+app.register(configRoutes);
 
 app.get('/health', async () => ({ status: 'ok' }));
 

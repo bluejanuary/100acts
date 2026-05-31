@@ -50,13 +50,15 @@ class _MapScreenState extends State<MapScreen> {
         );
       }).toSet();
 
-      setState(() {
-        _markers = markers;
-        _count = acts.length;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _markers = markers;
+          _count = acts.length;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 

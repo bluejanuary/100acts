@@ -3,6 +3,9 @@ node_modules/
 .pnp
 .pnp.js
 
+# ─── Local credentials (never commit) ────────────────────────────────────────
+doc/CREDENTIALS.md
+
 # ─── Environment / secrets ───────────────────────────────────────────────────
 .env
 .env.local

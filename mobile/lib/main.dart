@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/token.dart';
+import 'services/api.dart';
+import 'services/system_config_storage.dart';
 import 'screens/login_screen.dart';
 import 'screens/upload_screen.dart';
 import 'screens/map_screen.dart';
@@ -25,10 +27,27 @@ class _AppState extends State<App> {
   @override
   void initState() {
     super.initState();
-    TokenStorage.getToken().then((t) => setState(() => _authenticated = t != null));
+    _init();
   }
 
-  void _onAuth() => setState(() => _authenticated = true);
+  Future<void> _init() async {
+    final token = await TokenStorage.getToken();
+    final isAuth = token != null;
+
+    if (isAuth) {
+      // Refresh system config in background; ignore failures (cached copy still used)
+      getSystemConfig().then(SystemConfigStorage.save).catchError((_) {});
+    }
+
+    if (mounted) setState(() => _authenticated = isAuth);
+  }
+
+  void _onAuth() {
+    // Fetch system config immediately after login
+    getSystemConfig().then(SystemConfigStorage.save).catchError((_) {});
+    setState(() => _authenticated = true);
+  }
+
   void _onLogout() => setState(() => _authenticated = false);
 
   @override

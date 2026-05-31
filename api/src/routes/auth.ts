@@ -43,6 +43,25 @@ export async function authRoutes(app: FastifyInstance) {
     };
   });
 
+  // POST /auth/refresh
+  app.post('/auth/refresh', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['refreshToken'],
+        properties: { refreshToken: { type: 'string' } },
+      },
+    },
+  }, async (request, reply) => {
+    const { refreshToken } = request.body as { refreshToken: string };
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+    if (error || !data.session) return reply.status(401).send({ error: 'Refresh failed' });
+    return {
+      token: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+    };
+  });
+
   // POST /auth/login
   app.post('/auth/login', {
     schema: {
@@ -66,6 +85,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     return {
       token: data.session.access_token,
+      refreshToken: data.session.refresh_token,
       user: { id: data.user.id, email: data.user.email },
     };
   });

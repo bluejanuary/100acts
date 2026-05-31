@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/user.dart';
+import '../models/system_config.dart';
 import 'token.dart';
 
 String get _base => dotenv.env['API_URL']!;
@@ -15,9 +17,57 @@ Future<Map<String, String>> _authHeaders() async {
   };
 }
 
+/// Attempt to refresh the access token using the stored refresh token.
+/// Returns true if successful, false otherwise.
+Future<bool> _tryRefresh() async {
+  final refreshToken = await TokenStorage.getRefreshToken();
+  if (refreshToken == null) return false;
+  try {
+    final res = await http.post(
+      Uri.parse('$_base/auth/refresh'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'refreshToken': refreshToken}),
+    );
+    if (res.statusCode != 200) return false;
+    final body = jsonDecode(res.body);
+    await TokenStorage.save(body['token'], body['refreshToken']);
+    debugPrint('[api] token refreshed');
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Make an authenticated GET request, refreshing token once on 401.
+Future<http.Response> _authGet(String path) async {
+  var headers = await _authHeaders();
+  var res = await http.get(Uri.parse('$_base$path'), headers: headers);
+  if (res.statusCode == 401) {
+    final refreshed = await _tryRefresh();
+    if (refreshed) {
+      headers = await _authHeaders();
+      res = await http.get(Uri.parse('$_base$path'), headers: headers);
+    }
+  }
+  return res;
+}
+
+/// Make an authenticated POST request, refreshing token once on 401.
+Future<http.Response> _authPost(String path, Object body) async {
+  var headers = await _authHeaders();
+  var res = await http.post(Uri.parse('$_base$path'), headers: headers, body: jsonEncode(body));
+  if (res.statusCode == 401) {
+    final refreshed = await _tryRefresh();
+    if (refreshed) {
+      headers = await _authHeaders();
+      res = await http.post(Uri.parse('$_base$path'), headers: headers, body: jsonEncode(body));
+    }
+  }
+  return res;
+}
+
 Future<User> getMe() async {
-  final headers = await _authHeaders();
-  final res = await http.get(Uri.parse('$_base/auth/me'), headers: headers);
+  final res = await _authGet('/auth/me');
   if (res.statusCode != 200) throw Exception('Failed to fetch user');
   return User.fromJson(jsonDecode(res.body));
 }
@@ -45,20 +95,22 @@ Future<void> signup(String email, String password) async {
   }
 }
 
+Future<SystemConfig> getSystemConfig() async {
+  debugPrint('[api] GET $_base/config');
+  final res = await _authGet('/config');
+  debugPrint('[api] GET $_base/config → ${res.statusCode} ${res.body}');
+  if (res.statusCode != 200) throw Exception('Failed to fetch system config (${res.statusCode})');
+  return SystemConfig.fromJson(jsonDecode(res.body));
+}
+
 Future<List<dynamic>> getActs() async {
-  final headers = await _authHeaders();
-  final res = await http.get(Uri.parse('$_base/acts'), headers: headers);
+  final res = await _authGet('/acts');
   if (res.statusCode != 200) throw Exception('Failed to fetch acts');
   return jsonDecode(res.body);
 }
 
 Future<Map<String, dynamic>> getPresignedUrl(String filename) async {
-  final headers = await _authHeaders();
-  final res = await http.post(
-    Uri.parse('$_base/uploads/presign'),
-    headers: headers,
-    body: jsonEncode({'filename': filename, 'contentType': 'image/jpeg'}),
-  );
+  final res = await _authPost('/uploads/presign', {'filename': filename, 'contentType': 'image/jpeg'});
   if (res.statusCode != 200) throw Exception('Failed to get upload URL');
   return jsonDecode(res.body);
 }
@@ -79,18 +131,13 @@ Future<void> createAct({
   required double long,
   double? gpsAccuracy,
 }) async {
-  final headers = await _authHeaders();
-  final res = await http.post(
-    Uri.parse('$_base/acts'),
-    headers: headers,
-    body: jsonEncode({
-      'category': category,
-      'photoUrl': photoUrl,
-      'lat': lat,
-      'long': long,
-      if (gpsAccuracy != null) 'gpsAccuracy': gpsAccuracy,
-    }),
-  );
+  final res = await _authPost('/acts', {
+    'category': category,
+    'photoUrl': photoUrl,
+    'lat': lat,
+    'long': long,
+    if (gpsAccuracy != null) 'gpsAccuracy': gpsAccuracy,
+  });
   if (res.statusCode != 201) {
     final body = jsonDecode(res.body);
     throw Exception(body['error'] ?? 'Failed to save act');
