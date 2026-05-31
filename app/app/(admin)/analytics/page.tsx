@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getAnalytics, type Analytics } from '@/lib/admin-api';
+import Spinner from '@/components/Spinner';
 
 const LABELS: Record<string, string> = {
   tree_mangrove: 'Tree / Mangrove', wildlife: 'Wildlife',
@@ -28,7 +29,7 @@ export default function AnalyticsPage() {
     getAnalytics().then(setData).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p className="state">Loading...</p>;
+  if (loading) return <Spinner label="Loading analytics…" />;
   if (error) return <p className="state error">{error}</p>;
   if (!data) return null;
 

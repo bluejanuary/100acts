@@ -48,6 +48,12 @@ export function deleteUser(id: string) {
   return request(`/api/admin/users/${id}`, { method: 'DELETE', headers: authHeaders() });
 }
 
+export function updateUserPassword(id: string, password: string) {
+  return request(`/api/admin/users/${id}`, {
+    method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ password }),
+  });
+}
+
 export function getAnalytics() {
   return request<Analytics>('/api/admin/analytics', { headers: authHeaders() });
 }

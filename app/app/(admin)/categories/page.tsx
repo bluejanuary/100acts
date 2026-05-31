@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getCategories, createCategory, type Category } from '@/lib/admin-api';
+import Spinner from '@/components/Spinner';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -66,7 +67,7 @@ export default function CategoriesPage() {
 
       <div className="page-header"><h2>Existing categories</h2></div>
 
-      {loading && <p className="state">Loading...</p>}
+      {loading && <Spinner label="Loading categories…" />}
       {listError && <p className="state error">{listError}</p>}
       {!loading && !listError && (
         <table>

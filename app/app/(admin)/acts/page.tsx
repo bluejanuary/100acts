@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getActs, type Act } from '@/lib/admin-api';
+import Spinner from '@/components/Spinner';
 
 const LABELS: Record<string, string> = {
   tree_mangrove: 'Tree / Mangrove', wildlife: 'Wildlife',
@@ -24,7 +25,7 @@ export default function ActsPage() {
         {!loading && !error && <span className="count">{acts.length} total</span>}
       </div>
 
-      {loading && <p className="state">Loading...</p>}
+      {loading && <Spinner label="Loading acts…" />}
       {error && <p className="state error">{error}</p>}
       {!loading && !error && (
         <table>
