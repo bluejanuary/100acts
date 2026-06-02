@@ -10,7 +10,13 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json(
-    data.users.map(u => ({ id: u.id, email: u.email, createdAt: u.created_at, lastSignIn: u.last_sign_in_at })),
+    data.users.map(u => ({
+      id: u.id,
+      email: u.email,
+      createdAt: u.created_at,
+      lastSignIn: u.last_sign_in_at,
+      role: (u.app_metadata?.role as string) ?? 'user',
+    })),
   );
 }
 

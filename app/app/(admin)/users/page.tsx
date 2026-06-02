@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { getUsers, createUser, deleteUser, updateUserPassword, type User } from '@/lib/admin-api';
+import { getUsers, createUser, deleteUser, updateUserPassword, updateUserRole, type User } from '@/lib/admin-api';
 import Spinner from '@/components/Spinner';
 
 type SortDir = 'asc' | 'desc';
@@ -60,6 +60,17 @@ export default function UsersPage() {
       setCreateError(e instanceof Error ? e.message : 'Failed to create user');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function toggleRole(user: User) {
+    const newRole = user.role === 'admin' ? 'user' : 'admin';
+    if (!confirm(`${newRole === 'admin' ? 'Promote' : 'Demote'} ${user.email} to ${newRole}?`)) return;
+    try {
+      await updateUserRole(user.id, newRole);
+      setUsers(u => u.map(x => x.id === user.id ? { ...x, role: newRole } : x));
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to update role');
     }
   }
 
@@ -151,19 +162,23 @@ export default function UsersPage() {
       {!loading && !listError && (
         <table>
           <thead>
-            <tr><th>Email</th><th>Joined</th><th>Last sign in</th><th>ID</th><th></th></tr>
+            <tr><th>Email</th><th>Role</th><th>Joined</th><th>Last sign in</th><th>ID</th><th></th></tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="empty">No users match your search</td></tr>
+              <tr><td colSpan={6} className="empty">No users match your search</td></tr>
             )}
             {filtered.map(user => (
               <tr key={user.id}>
                 <td className="email">{user.email}</td>
+                <td><span className={`badge ${user.role}`}>{user.role}</span></td>
                 <td>{new Date(user.createdAt).toLocaleDateString()}</td>
                 <td>{user.lastSignIn ? new Date(user.lastSignIn).toLocaleDateString() : '—'}</td>
                 <td className="mono">{user.id.slice(0, 8)}…</td>
                 <td className="actions">
+                  <button className="role-btn" onClick={() => toggleRole(user)}>
+                    {user.role === 'admin' ? 'Demote' : 'Make Admin'}
+                  </button>
                   <button className="edit" onClick={() => openEdit(user)}>Edit</button>
                   <button className="delete" onClick={() => remove(user.id, user.email)}>Delete</button>
                 </td>
@@ -227,6 +242,11 @@ export default function UsersPage() {
         .email { font-weight: 500; }
         .mono { font-family: monospace; font-size: 12px; color: #999; }
         .actions { display: flex; gap: 8px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge.admin { background: #fef9c3; color: #854d0e; }
+        .badge.user { background: #f0fdf4; color: #166534; }
+        .role-btn { padding: 5px 12px; background: #fff; color: #7c3aed; border: 1px solid #7c3aed; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .role-btn:hover { background: #f5f3ff; }
         .edit { padding: 5px 12px; background: #fff; color: #2563eb; border: 1px solid #2563eb; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .edit:hover { background: #eff6ff; }
         .delete { padding: 5px 12px; background: #fff; color: #dc2626; border: 1px solid #dc2626; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }

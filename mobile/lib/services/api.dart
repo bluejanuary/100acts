@@ -85,7 +85,7 @@ Future<Map<String, dynamic>> login(String email, String password) async {
 
 Future<void> signup(String email, String password) async {
   final res = await http.post(
-    Uri.parse('$_base/auth/signup'),
+    Uri.parse('$_base/auth/register'),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode({'email': email, 'password': password}),
   );

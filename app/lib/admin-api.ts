@@ -54,6 +54,12 @@ export function updateUserPassword(id: string, password: string) {
   });
 }
 
+export function updateUserRole(id: string, role: 'admin' | 'user') {
+  return request(`/api/admin/users/${id}`, {
+    method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ role }),
+  });
+}
+
 export function getAnalytics() {
   return request<Analytics>('/api/admin/analytics', { headers: authHeaders() });
 }
@@ -74,7 +80,7 @@ export type Act = {
 };
 
 export type User = {
-  id: string; email: string; createdAt: string; lastSignIn: string | null;
+  id: string; email: string; createdAt: string; lastSignIn: string | null; role: 'admin' | 'user';
 };
 
 export type Analytics = {
