@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/system_config.dart';
@@ -128,7 +129,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Log Act'), backgroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Log Act')),
       body: RefreshIndicator(
         onRefresh: () async {
           try {
@@ -147,7 +148,7 @@ class _UploadScreenState extends State<UploadScreen> {
             children: [
               // ── Category ─────────────────────────────────────────────────
               const Text('CATEGORY',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.5)),
+                  style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF94a3b8), letterSpacing: 0.8)),
               const SizedBox(height: 10),
               _categoriesLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -179,7 +180,7 @@ class _UploadScreenState extends State<UploadScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('PHOTOS',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.5)),
+                      style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF94a3b8), letterSpacing: 0.8)),
                   Text(
                     '${_photos.length} / $_maxPhotos',
                     style: TextStyle(
@@ -295,7 +296,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
               // ── Description ──────────────────────────────────────────────
               const Text('DESCRIPTION',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.5)),
+                  style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF94a3b8), letterSpacing: 0.8)),
               const SizedBox(height: 10),
               TextField(
                 controller: _descriptionController,
@@ -354,7 +355,7 @@ class _UploadScreenState extends State<UploadScreen> {
                           ],
                         ],
                       )
-                    : const Text('Submit Act', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    : Text('Submit Act', style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ],
           ),

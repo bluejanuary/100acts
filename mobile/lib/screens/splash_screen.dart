@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -6,49 +7,72 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF22c55e),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ── Logo centred in remaining space ──────────────────────────
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      'assets/icon/100acts_icon_1024.png',
-                      width: 140,
-                      height: 140,
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      '100 Acts',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF16a34a), Color(0xFF22c55e), Color(0xFF4ade80)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: Image.asset(
+                            'assets/icon/100acts_icon_1024.png',
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      Text(
+                        '100 Acts',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Log your environmental acts',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-
-            // ── Footer ───────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.only(bottom: 32),
-              child: Text(
-                'Powered by BLUE JANUARY LLC',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.75),
-                  fontSize: 12,
-                  letterSpacing: 0.5,
+              Padding(
+                padding: const EdgeInsets.only(bottom: 36),
+                child: Text(
+                  'Powered by BLUE JANUARY LLC',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white.withOpacity(0.65),
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
