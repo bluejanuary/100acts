@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/user.dart';
 import '../models/system_config.dart';
+import 'api_endpoints.dart';
 import 'token.dart';
 
-String get _base => dotenv.env['API_URL']!;
+// ─── Auth headers ────────────────────────────────────────────────────────────
 
 Future<Map<String, String>> _authHeaders() async {
   final token = await TokenStorage.getToken();
@@ -17,14 +17,14 @@ Future<Map<String, String>> _authHeaders() async {
   };
 }
 
-/// Attempt to refresh the access token using the stored refresh token.
-/// Returns true if successful, false otherwise.
+// ─── Token refresh ───────────────────────────────────────────────────────────
+
 Future<bool> _tryRefresh() async {
   final refreshToken = await TokenStorage.getRefreshToken();
   if (refreshToken == null) return false;
   try {
     final res = await http.post(
-      Uri.parse('$_base/auth/refresh'),
+      Uri.parse(ApiEndpoints.refresh),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'refreshToken': refreshToken}),
     );
@@ -38,84 +38,105 @@ Future<bool> _tryRefresh() async {
   }
 }
 
-/// Make an authenticated GET request, refreshing token once on 401.
-Future<http.Response> _authGet(String path) async {
+// ─── Authenticated request helpers ───────────────────────────────────────────
+
+Future<http.Response> _authGet(String url) async {
   var headers = await _authHeaders();
-  var res = await http.get(Uri.parse('$_base$path'), headers: headers);
+  var res = await http.get(Uri.parse(url), headers: headers);
   if (res.statusCode == 401) {
     final refreshed = await _tryRefresh();
     if (refreshed) {
       headers = await _authHeaders();
-      res = await http.get(Uri.parse('$_base$path'), headers: headers);
+      res = await http.get(Uri.parse(url), headers: headers);
     }
   }
   return res;
 }
 
-/// Make an authenticated POST request, refreshing token once on 401.
-Future<http.Response> _authPost(String path, Object body) async {
+Future<http.Response> _authPost(String url, Object body) async {
   var headers = await _authHeaders();
-  var res = await http.post(Uri.parse('$_base$path'), headers: headers, body: jsonEncode(body));
+  var res = await http.post(Uri.parse(url), headers: headers, body: jsonEncode(body));
   if (res.statusCode == 401) {
     final refreshed = await _tryRefresh();
     if (refreshed) {
       headers = await _authHeaders();
-      res = await http.post(Uri.parse('$_base$path'), headers: headers, body: jsonEncode(body));
+      res = await http.post(Uri.parse(url), headers: headers, body: jsonEncode(body));
     }
   }
   return res;
 }
+
+// ─── API calls ───────────────────────────────────────────────────────────────
 
 Future<User> getMe() async {
-  final res = await _authGet('/auth/me');
+  final res = await _authGet(ApiEndpoints.me);
   if (res.statusCode != 200) throw Exception('Failed to fetch user');
   return User.fromJson(jsonDecode(res.body));
 }
 
 Future<Map<String, dynamic>> login(String email, String password) async {
+  debugPrint('[api] POST ${ApiEndpoints.login}');
   final res = await http.post(
-    Uri.parse('$_base/auth/login'),
+    Uri.parse(ApiEndpoints.login),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode({'email': email, 'password': password}),
   );
-  final body = jsonDecode(res.body);
-  if (res.statusCode != 200) throw Exception(body['error'] ?? 'Login failed');
-  return body;
+  debugPrint('[api] login → ${res.statusCode} ${res.body}');
+  if (res.statusCode != 200) {
+    String errorMsg = 'Login failed';
+    try {
+      errorMsg = jsonDecode(res.body)['error'] ?? errorMsg;
+    } catch (_) {
+      errorMsg = 'Server error (${res.statusCode})';
+    }
+    throw Exception(errorMsg);
+  }
+  return jsonDecode(res.body);
 }
 
 Future<void> signup(String email, String password) async {
+  debugPrint('[api] POST ${ApiEndpoints.register}');
   final res = await http.post(
-    Uri.parse('$_base/auth/register'),
+    Uri.parse(ApiEndpoints.register),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode({'email': email, 'password': password}),
   );
+  debugPrint('[api] register → ${res.statusCode} ${res.body}');
   if (res.statusCode != 201) {
-    final body = jsonDecode(res.body);
-    throw Exception(body['error'] ?? 'Signup failed');
+    String errorMsg = 'Signup failed';
+    try {
+      errorMsg = jsonDecode(res.body)['error'] ?? errorMsg;
+    } catch (_) {
+      errorMsg = 'Server error (${res.statusCode})';
+    }
+    throw Exception(errorMsg);
   }
 }
 
 Future<SystemConfig> getSystemConfig() async {
-  debugPrint('[api] GET $_base/api/config');
-  final res = await http.get(Uri.parse('$_base/api/config'));
-  debugPrint('[api] GET $_base/api/config → ${res.statusCode} ${res.body}');
+  debugPrint('[api] GET ${ApiEndpoints.config}');
+  final res = await http.get(Uri.parse(ApiEndpoints.config));
+  debugPrint('[api] config → ${res.statusCode} ${res.body}');
   if (res.statusCode != 200) throw Exception('Failed to fetch system config (${res.statusCode})');
   return SystemConfig.fromJson(jsonDecode(res.body));
 }
 
 Future<List<dynamic>> getActs() async {
-  final res = await _authGet('/acts');
+  debugPrint('[api] GET ${ApiEndpoints.acts}');
+  final res = await _authGet(ApiEndpoints.acts);
   if (res.statusCode != 200) throw Exception('Failed to fetch acts');
   return jsonDecode(res.body);
 }
 
 Future<Map<String, dynamic>> getPresignedUrl(String filename) async {
-  final res = await _authPost('/uploads/presign', {'filename': filename, 'contentType': 'image/jpeg'});
+  debugPrint('[api] POST ${ApiEndpoints.presign}');
+  final res = await _authPost(ApiEndpoints.presign, {'filename': filename, 'contentType': 'image/jpeg'});
   if (res.statusCode != 200) throw Exception('Failed to get upload URL');
   return jsonDecode(res.body);
 }
 
 Future<void> uploadToS3(String uploadUrl, List<int> bytes) async {
+  debugPrint('[api] PUT $uploadUrl');
   final res = await http.put(
     Uri.parse(uploadUrl),
     headers: {'Content-Type': 'image/jpeg'},
@@ -131,7 +152,8 @@ Future<void> createAct({
   required double long,
   double? gpsAccuracy,
 }) async {
-  final res = await _authPost('/acts', {
+  debugPrint('[api] POST ${ApiEndpoints.acts}');
+  final res = await _authPost(ApiEndpoints.acts, {
     'category': category,
     'photoUrl': photoUrl,
     'lat': lat,
@@ -139,7 +161,10 @@ Future<void> createAct({
     if (gpsAccuracy != null) 'gpsAccuracy': gpsAccuracy,
   });
   if (res.statusCode != 201) {
-    final body = jsonDecode(res.body);
-    throw Exception(body['error'] ?? 'Failed to save act');
+    String errorMsg = 'Failed to save act';
+    try {
+      errorMsg = jsonDecode(res.body)['error'] ?? errorMsg;
+    } catch (_) {}
+    throw Exception(errorMsg);
   }
 }
