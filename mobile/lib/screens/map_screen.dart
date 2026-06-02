@@ -105,6 +105,10 @@ class _MapScreenState extends State<MapScreen> {
                   myLocationEnabled: true,
                   myLocationButtonEnabled: true,
                   zoomControlsEnabled: true,
+                  zoomGesturesEnabled: true,
+                  scrollGesturesEnabled: true,
+                  rotateGesturesEnabled: true,
+                  tiltGesturesEnabled: true,
                   onMapCreated: (controller) {
                     _mapController = controller;
                     _moveToCurrentLocation();
@@ -144,10 +148,11 @@ class _MapScreenState extends State<MapScreen> {
                       act: _selectedAct!,
                       onDismiss: _dismissCard,
                       onTap: () {
+                        final act = _selectedAct!;
                         _dismissCard();
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => ActDetailScreen(act: _selectedAct!)),
+                          MaterialPageRoute(builder: (_) => ActDetailScreen(act: act)),
                         );
                       },
                     ),
