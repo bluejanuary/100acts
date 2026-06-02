@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  let body: { category?: unknown; photoUrl?: unknown; lat?: unknown; long?: unknown; gpsAccuracy?: unknown };
+  let body: { category?: string; photoUrl?: string; lat?: number; long?: number; gpsAccuracy?: number };
   try {
     body = await req.json();
   } catch {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   const act = await prisma.act.create({
-    data: { userId: auth.user.id, category, photoUrl, lat, long, gpsAccuracy },
+    data: { userId: auth.user.id, category: category as 'tree_mangrove' | 'wildlife' | 'recycling' | 'litter_cleanup', photoUrl, lat, long, gpsAccuracy },
   });
   return NextResponse.json(act, { status: 201 });
 }
