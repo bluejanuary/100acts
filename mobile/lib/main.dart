@@ -33,7 +33,11 @@ class _AppState extends State<App> {
   }
 
   Future<void> _init() async {
-    final token = await TokenStorage.getToken();
+    final results = await Future.wait([
+      TokenStorage.getToken(),
+      Future.delayed(const Duration(seconds: 2)),
+    ]);
+    final token = results[0] as String?;
     final isAuth = token != null;
 
     if (isAuth) {
