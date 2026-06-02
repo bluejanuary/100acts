@@ -7,7 +7,8 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const acts = await prisma.act.findMany({
-    select: { id: true, userId: true, category: true, photoUrl: true, lat: true, long: true, createdAt: true },
+    where: { userId: auth.user.id },
+    select: { id: true, userId: true, category: true, description: true, photoUrl: true, photoUrls: true, lat: true, long: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
   });
   return NextResponse.json(acts);
@@ -17,16 +18,19 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  let body: { category?: string; description?: string; photoUrl?: string; lat?: number; long?: number; gpsAccuracy?: number };
+  let body: { category?: string; description?: string; photoUrls?: string[]; lat?: number; long?: number; gpsAccuracy?: number };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
-  const { category, description, photoUrl, lat, long, gpsAccuracy } = body;
+  const { category, description, photoUrls, lat, long, gpsAccuracy } = body;
 
-  if (!category || !description || !photoUrl || lat == null || long == null) {
-    return NextResponse.json({ error: 'category, description, photoUrl, lat, long are required' }, { status: 400 });
+  if (!category || !description || !photoUrls?.length || lat == null || long == null) {
+    return NextResponse.json({ error: 'category, description, photoUrls, lat, long are required' }, { status: 400 });
+  }
+  if (photoUrls.length > 5) {
+    return NextResponse.json({ error: 'Maximum 5 photos allowed' }, { status: 400 });
   }
   if (typeof lat !== 'number' || typeof long !== 'number' || lat < -90 || lat > 90 || long < -180 || long > 180) {
     return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
@@ -39,7 +43,7 @@ export async function POST(req: NextRequest) {
   }
 
   const act = await prisma.act.create({
-    data: { userId: auth.user.id, category, description, photoUrl, lat, long, gpsAccuracy },
+    data: { userId: auth.user.id, category, description, photoUrl: photoUrls[0], photoUrls, lat, long, gpsAccuracy },
   });
   return NextResponse.json(act, { status: 201 });
 }

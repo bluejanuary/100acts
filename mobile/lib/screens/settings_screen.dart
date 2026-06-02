@@ -81,6 +81,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: _logout,
             ),
           ),
+          const Spacer(),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 24),
+            child: Text(
+              'Powered by BLUE JANUARY LLC',
+              style: TextStyle(color: Colors.grey, fontSize: 12, letterSpacing: 0.5),
+            ),
+          ),
         ],
       ),
     );

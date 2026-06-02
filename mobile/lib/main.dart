@@ -4,7 +4,9 @@ import 'services/token.dart';
 import 'services/api.dart';
 import 'services/system_config_storage.dart';
 import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/upload_screen.dart';
+import 'screens/acts_screen.dart';
 import 'screens/map_screen.dart';
 import 'screens/settings_screen.dart';
 
@@ -60,7 +62,7 @@ class _AppState extends State<App> {
         useMaterial3: true,
       ),
       home: _authenticated == null
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          ? const SplashScreen()
           : _authenticated!
               ? MainTabs(onLogout: _onLogout)
               : LoginScreen(onAuth: _onAuth),
@@ -75,11 +77,12 @@ class MainTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         body: TabBarView(
           children: [
             const UploadScreen(),
+            const ActsScreen(),
             const MapScreen(),
             SettingsScreen(onLogout: onLogout),
           ],
@@ -87,6 +90,7 @@ class MainTabs extends StatelessWidget {
         bottomNavigationBar: const TabBar(
           tabs: [
             Tab(icon: Icon(Icons.camera_alt), text: 'Log Act'),
+            Tab(icon: Icon(Icons.list_alt), text: 'My Acts'),
             Tab(icon: Icon(Icons.map), text: 'Map'),
             Tab(icon: Icon(Icons.person), text: 'Settings'),
           ],

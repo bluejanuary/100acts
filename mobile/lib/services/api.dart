@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../models/act.dart';
 import '../models/user.dart';
 import '../models/system_config.dart';
 import 'api_endpoints.dart';
@@ -121,11 +122,12 @@ Future<SystemConfig> getSystemConfig() async {
   return SystemConfig.fromJson(jsonDecode(res.body));
 }
 
-Future<List<dynamic>> getActs() async {
+Future<List<Act>> getActs() async {
   debugPrint('[api] GET ${ApiEndpoints.acts}');
   final res = await _authGet(ApiEndpoints.acts);
   if (res.statusCode != 200) throw Exception('Failed to fetch acts');
-  return jsonDecode(res.body);
+  final list = jsonDecode(res.body) as List<dynamic>;
+  return list.map((e) => Act.fromJson(e as Map<String, dynamic>)).toList();
 }
 
 Future<Map<String, dynamic>> getPresignedUrl(String filename) async {
@@ -148,7 +150,7 @@ Future<void> uploadToS3(String uploadUrl, List<int> bytes) async {
 Future<void> createAct({
   required String category,
   required String description,
-  required String photoUrl,
+  required List<String> photoUrls,
   required double lat,
   required double long,
   double? gpsAccuracy,
@@ -157,7 +159,7 @@ Future<void> createAct({
   final res = await _authPost(ApiEndpoints.acts, {
     'category': category,
     'description': description,
-    'photoUrl': photoUrl,
+    'photoUrls': photoUrls,
     'lat': lat,
     'long': long,
     if (gpsAccuracy != null) 'gpsAccuracy': gpsAccuracy,

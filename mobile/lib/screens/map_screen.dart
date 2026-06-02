@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../models/act.dart';
 import '../services/api.dart';
 
 const _categoryColors = {
@@ -37,15 +38,15 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _loadActs() async {
     try {
       final acts = await getActs();
-      final markers = acts.map<Marker>((act) {
-        final hue = _categoryColors[act['category']] ?? BitmapDescriptor.hueGreen;
+      final markers = acts.map<Marker>((Act act) {
+        final hue = _categoryColors[act.category] ?? BitmapDescriptor.hueGreen;
         return Marker(
-          markerId: MarkerId(act['id']),
-          position: LatLng(act['lat'], act['long']),
+          markerId: MarkerId(act.id),
+          position: LatLng(act.lat, act.long),
           icon: BitmapDescriptor.defaultMarkerWithHue(hue),
           infoWindow: InfoWindow(
-            title: _categoryLabels[act['category']] ?? act['category'],
-            snippet: DateTime.parse(act['createdAt']).toLocal().toString().substring(0, 10),
+            title: _categoryLabels[act.category] ?? act.category,
+            snippet: act.createdAt.toLocal().toString().substring(0, 10),
           ),
         );
       }).toSet();

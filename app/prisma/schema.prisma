@@ -22,6 +22,7 @@ model Act {
   category    String
   description String
   photoUrl    String   @map("photo_url")
+  photoUrls   String[] @map("photo_urls")
   lat         Float
   long        Float
   gpsAccuracy Float?   @map("gps_accuracy")
