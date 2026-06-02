@@ -4,7 +4,7 @@ class ApiEndpoints {
   static String get _base => dotenv.env['API_URL']!;
 
   // Auth
-  static String get login       => '$_base/api/auth/login';
+  static String get login       => '$_base/api/auth/mobile-login';
   static String get register    => '$_base/api/auth/register';
   static String get refresh     => '$_base/api/auth/refresh';
   static String get me          => '$_base/api/auth/me';
