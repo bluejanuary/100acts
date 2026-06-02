@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
-const VALID_CATEGORIES = new Set(['tree_mangrove', 'wildlife', 'recycling', 'litter_cleanup']);
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -29,15 +28,18 @@ export async function POST(req: NextRequest) {
   if (!category || !photoUrl || lat == null || long == null) {
     return NextResponse.json({ error: 'category, photoUrl, lat, long are required' }, { status: 400 });
   }
-  if (!VALID_CATEGORIES.has(category)) {
-    return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
-  }
-  if (lat < -90 || lat > 90 || long < -180 || long > 180) {
+  if (typeof lat !== 'number' || typeof long !== 'number' || lat < -90 || lat > 90 || long < -180 || long > 180) {
     return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
   }
 
+  // Validate category against DB
+  const validCategory = await prisma.category.findUnique({ where: { slug: category } });
+  if (!validCategory) {
+    return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+  }
+
   const act = await prisma.act.create({
-    data: { userId: auth.user.id, category: category as 'tree_mangrove' | 'wildlife' | 'recycling' | 'litter_cleanup', photoUrl, lat, long, gpsAccuracy },
+    data: { userId: auth.user.id, category, photoUrl, lat, long, gpsAccuracy },
   });
   return NextResponse.json(act, { status: 201 });
 }

@@ -8,13 +8,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum ActCategory {
-  tree_mangrove
-  wildlife
-  recycling
-  litter_cleanup
-}
-
 model Category {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String
@@ -26,14 +19,14 @@ model Category {
 }
 
 model Act {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String      @db.Uuid @map("user_id")
-  category    ActCategory
-  photoUrl    String      @map("photo_url")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid @map("user_id")
+  category    String
+  photoUrl    String   @map("photo_url")
   lat         Float
   long        Float
-  gpsAccuracy Float?      @map("gps_accuracy")
-  createdAt   DateTime    @default(now()) @map("created_at")
+  gpsAccuracy Float?   @map("gps_accuracy")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("acts")
 }
