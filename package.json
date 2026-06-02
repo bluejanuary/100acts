@@ -7,6 +7,12 @@
   ],
   "scripts": {
     "mobile": "yarn workspace mobile start",
-    "app": "yarn workspace app dev"
+    "app": "yarn workspace app dev",
+    "build": "yarn workspace app build",
+    "start": "yarn workspace app start"
+  },
+  "engines": {
+    "node": "24.x",
+    "yarn": ">=1.x"
   }
 }

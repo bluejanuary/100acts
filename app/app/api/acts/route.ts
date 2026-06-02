@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
-import { ActCategory } from '@prisma/client';
-
-const VALID_CATEGORIES = new Set(Object.values(ActCategory));
+const VALID_CATEGORIES = new Set(['tree_mangrove', 'wildlife', 'recycling', 'litter_cleanup']);
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
