@@ -20,6 +20,7 @@ model Act {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId      String   @db.Uuid @map("user_id")
   category    String
+  description String
   photoUrl    String   @map("photo_url")
   lat         Float
   long        Float

@@ -147,6 +147,7 @@ Future<void> uploadToS3(String uploadUrl, List<int> bytes) async {
 
 Future<void> createAct({
   required String category,
+  required String description,
   required String photoUrl,
   required double lat,
   required double long,
@@ -155,6 +156,7 @@ Future<void> createAct({
   debugPrint('[api] POST ${ApiEndpoints.acts}');
   final res = await _authPost(ApiEndpoints.acts, {
     'category': category,
+    'description': description,
     'photoUrl': photoUrl,
     'lat': lat,
     'long': long,

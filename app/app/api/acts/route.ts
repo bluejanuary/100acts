@@ -17,16 +17,16 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  let body: { category?: string; photoUrl?: string; lat?: number; long?: number; gpsAccuracy?: number };
+  let body: { category?: string; description?: string; photoUrl?: string; lat?: number; long?: number; gpsAccuracy?: number };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
-  const { category, photoUrl, lat, long, gpsAccuracy } = body;
+  const { category, description, photoUrl, lat, long, gpsAccuracy } = body;
 
-  if (!category || !photoUrl || lat == null || long == null) {
-    return NextResponse.json({ error: 'category, photoUrl, lat, long are required' }, { status: 400 });
+  if (!category || !description || !photoUrl || lat == null || long == null) {
+    return NextResponse.json({ error: 'category, description, photoUrl, lat, long are required' }, { status: 400 });
   }
   if (typeof lat !== 'number' || typeof long !== 'number' || lat < -90 || lat > 90 || long < -180 || long > 180) {
     return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   const act = await prisma.act.create({
-    data: { userId: auth.user.id, category, photoUrl, lat, long, gpsAccuracy },
+    data: { userId: auth.user.id, category, description, photoUrl, lat, long, gpsAccuracy },
   });
   return NextResponse.json(act, { status: 201 });
 }

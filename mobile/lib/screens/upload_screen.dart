@@ -18,6 +18,7 @@ class _UploadScreenState extends State<UploadScreen> {
   bool _categoriesLoading = true;
   String? _selectedSlug;
   XFile? _photo;
+  final _descriptionController = TextEditingController();
   bool _loading = false;
 
   @override
@@ -48,6 +49,12 @@ class _UploadScreenState extends State<UploadScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickPhoto() async {
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
@@ -55,7 +62,7 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _submit() async {
-    if (_selectedSlug == null || _photo == null) return;
+    if (_selectedSlug == null || _photo == null || _descriptionController.text.trim().isEmpty) return;
 
     setState(() => _loading = true);
     try {
@@ -77,6 +84,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
       await createAct(
         category: _selectedSlug!,
+        description: _descriptionController.text.trim(),
         photoUrl: presign['publicUrl'],
         lat: pos.latitude,
         long: pos.longitude,
@@ -88,6 +96,7 @@ class _UploadScreenState extends State<UploadScreen> {
         setState(() {
           _photo = null;
           _selectedSlug = null;
+          _descriptionController.clear();
         });
       }
     } catch (e) {
@@ -104,6 +113,8 @@ class _UploadScreenState extends State<UploadScreen> {
   @override
   Widget build(BuildContext context) {
     final categorySelected = _selectedSlug != null;
+    final photoTaken = _photo != null;
+    final descriptionFilled = _descriptionController.text.trim().isNotEmpty;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -206,9 +217,47 @@ class _UploadScreenState extends State<UploadScreen> {
 
               const SizedBox(height: 28),
 
+              // ── Description ──────────────────────────────────────────────
+              const Text(
+                'DESCRIPTION',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _descriptionController,
+                enabled: photoTaken,
+                maxLines: 3,
+                maxLength: 280,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: photoTaken ? 'Describe your act...' : 'Take a photo first',
+                  hintStyle: TextStyle(color: photoTaken ? Colors.grey : const Color(0xFFcccccc)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: descriptionFilled ? const Color(0xFF22c55e) : const Color(0xFFdddddd),
+                      width: 1.5,
+                    ),
+                  ),
+                  disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFe5e5e5), width: 1.5),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF22c55e), width: 1.5),
+                  ),
+                  filled: true,
+                  fillColor: photoTaken ? const Color(0xFFfafafa) : const Color(0xFFf0f0f0),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
               // ── Submit ───────────────────────────────────────────────────
               ElevatedButton(
-                onPressed: (_loading || !categorySelected || _photo == null) ? null : _submit,
+                onPressed: (_loading || !categorySelected || !photoTaken || !descriptionFilled) ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF22c55e),
                   disabledBackgroundColor: const Color(0xFFd1d5db),
