@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth instanceof NextResponse) return auth;
-
+export async function GET(_req: NextRequest) {
   try {
     const categories = await prisma.category.findMany({
       select: { id: true, name: true, slug: true },

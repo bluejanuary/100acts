@@ -96,9 +96,9 @@ Future<void> signup(String email, String password) async {
 }
 
 Future<SystemConfig> getSystemConfig() async {
-  debugPrint('[api] GET $_base/config');
-  final res = await _authGet('/config');
-  debugPrint('[api] GET $_base/config → ${res.statusCode} ${res.body}');
+  debugPrint('[api] GET $_base/api/config');
+  final res = await http.get(Uri.parse('$_base/api/config'));
+  debugPrint('[api] GET $_base/api/config → ${res.statusCode} ${res.body}');
   if (res.statusCode != 200) throw Exception('Failed to fetch system config (${res.statusCode})');
   return SystemConfig.fromJson(jsonDecode(res.body));
 }
