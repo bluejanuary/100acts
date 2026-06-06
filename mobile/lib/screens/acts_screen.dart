@@ -73,7 +73,7 @@ class _ActsScreenState extends State<ActsScreen> {
               fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF0f172a)),
         ),
         actions: [
-          if (_acts.isNotEmpty)
+          if (!_loading && _acts.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: Center(
@@ -84,7 +84,9 @@ class _ActsScreenState extends State<ActsScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${_acts.length} logged',
+                    _searchQuery.isEmpty
+                        ? '${_acts.length} logged'
+                        : '${_filtered.length} of ${_acts.length}',
                     style: GoogleFonts.dmSans(
                         fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF16a34a)),
                   ),

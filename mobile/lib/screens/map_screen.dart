@@ -5,31 +5,26 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/act.dart';
+import '../models/system_config.dart';
 import '../services/api.dart';
+import '../services/system_config_storage.dart';
 import 'act_detail_screen.dart';
 
-const _categoryColors = {
-  'tree_mangrove': BitmapDescriptor.hueGreen,
-  'wildlife': BitmapDescriptor.hueOrange,
-  'recycling': BitmapDescriptor.hueBlue,
-  'litter_cleanup': BitmapDescriptor.hueRed,
-  'road_street': BitmapDescriptor.hueYellow,
-};
-
-const _categoryLabels = {
-  'tree_mangrove': 'Tree / Mangrove',
-  'wildlife': 'Wildlife',
-  'recycling': 'Recycling',
-  'litter_cleanup': 'Litter Cleanup',
-  'road_street': 'Road & Street',
-};
-
-const _categoryIcons = {
+// Fallback icon per slug for known categories
+const _slugIcons = {
   'tree_mangrove': Icons.park_outlined,
   'wildlife': Icons.pets_outlined,
   'recycling': Icons.recycling_outlined,
   'litter_cleanup': Icons.delete_outline,
   'road_street': Icons.warning_amber_rounded,
+};
+
+const _slugHues = {
+  'tree_mangrove': BitmapDescriptor.hueGreen,
+  'wildlife': BitmapDescriptor.hueOrange,
+  'recycling': BitmapDescriptor.hueBlue,
+  'litter_cleanup': BitmapDescriptor.hueRed,
+  'road_street': BitmapDescriptor.hueYellow,
 };
 
 class MapScreen extends StatefulWidget {
@@ -42,10 +37,12 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   List<Act> _acts = [];
+  List<CategoryConfig> _categories = [];
   Set<Marker> _markers = {};
   bool _loading = true;
   String? _selectedCategory;
   Position? _userPosition;
+  Act? _selectedAct;
 
   static const _defaultPosition = CameraPosition(target: LatLng(0, 20), zoom: 2);
 
@@ -62,8 +59,19 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _init() async {
-    await Future.wait([_loadActs(), _moveToCurrentLocation()]);
+    await Future.wait([_loadCategories(), _loadActs(), _moveToCurrentLocation()]);
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      var config = await SystemConfigStorage.get();
+      if (config == null || config.categories.isEmpty) {
+        config = await getSystemConfig();
+        await SystemConfigStorage.save(config);
+      }
+      if (mounted) setState(() => _categories = config!.categories);
+    } catch (_) {}
   }
 
   Future<void> _moveToCurrentLocation() async {
@@ -72,7 +80,10 @@ class _MapScreenState extends State<MapScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) return;
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
 
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
@@ -90,7 +101,7 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _loadActs() async {
     try {
-      final acts = await getActs();
+      final acts = await getAllActs();
       if (mounted) {
         setState(() {
           _acts = acts;
@@ -104,14 +115,17 @@ class _MapScreenState extends State<MapScreen> {
     return acts
         .where((a) => categoryFilter == null || a.category == categoryFilter)
         .map<Marker>((act) {
-          final hue = _categoryColors[act.category] ?? BitmapDescriptor.hueGreen;
+          final hue = _slugHues[act.category] ?? BitmapDescriptor.hueGreen;
           return Marker(
             markerId: MarkerId(act.id),
             position: LatLng(act.lat, act.long),
             icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-            onTap: () => _mapController?.animateCamera(
-              CameraUpdate.newLatLng(LatLng(act.lat, act.long)),
-            ),
+            onTap: () {
+              setState(() => _selectedAct = act);
+              _mapController?.animateCamera(
+                CameraUpdate.newLatLng(LatLng(act.lat, act.long)),
+              );
+            },
           );
         }).toSet();
   }
@@ -119,6 +133,7 @@ class _MapScreenState extends State<MapScreen> {
   void _onCategoryChanged(String? category) {
     setState(() {
       _selectedCategory = category;
+      _selectedAct = null;
       _markers = _buildMarkers(_acts, category);
     });
   }
@@ -148,6 +163,21 @@ class _MapScreenState extends State<MapScreen> {
     return '${(m / 1000).toStringAsFixed(1)} km away';
   }
 
+  String _categoryName(String slug) {
+    for (final c in _categories) {
+      if (c.slug == slug) return c.name;
+    }
+    return slug;
+  }
+
+  IconData _categoryIcon(String slug) =>
+      _slugIcons[slug] ?? Icons.category_outlined;
+
+  void _navigateToDetail(Act act) {
+    setState(() => _selectedAct = null);
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ActDetailScreen(act: act)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -163,6 +193,7 @@ class _MapScreenState extends State<MapScreen> {
         ),
         actions: [
           _CategoryFilterChip(
+            categories: _categories,
             selectedCategory: _selectedCategory,
             onChanged: _onCategoryChanged,
           ),
@@ -203,8 +234,55 @@ class _MapScreenState extends State<MapScreen> {
                       _mapController = controller;
                       _moveToCurrentLocation();
                     },
+                    onTap: (_) => setState(() => _selectedAct = null),
                   ),
                 ),
+
+                // ── Total acts count badge ───────────────────────────────────
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.eco_outlined, size: 16, color: Color(0xFF22c55e)),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${_acts.length} acts',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF22c55e),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Act preview card (shown on marker tap) ───────────────────
+                if (_selectedAct != null)
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: MediaQuery.of(context).size.height * 0.37,
+                    child: _ActPreviewCard(
+                      act: _selectedAct!,
+                      categoryName: _categoryName(_selectedAct!.category),
+                      categoryIcon: _categoryIcon(_selectedAct!.category),
+                      onDismiss: () => setState(() => _selectedAct = null),
+                      onTap: () => _navigateToDetail(_selectedAct!),
+                    ),
+                  ),
 
                 // ── My Location FAB ──────────────────────────────────────────
                 Positioned(
@@ -230,8 +308,7 @@ class _MapScreenState extends State<MapScreen> {
                     return Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(20)),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                         boxShadow: [
                           BoxShadow(
                               color: Colors.black12,
@@ -241,7 +318,6 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Drag handle
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             child: Container(
@@ -254,8 +330,7 @@ class _MapScreenState extends State<MapScreen> {
                             ),
                           ),
                           Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                             child: Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
@@ -276,22 +351,17 @@ class _MapScreenState extends State<MapScreen> {
                                   )
                                 : ListView.separated(
                                     controller: scrollController,
-                                    padding: const EdgeInsets.fromLTRB(
-                                        16, 0, 16, 16),
+                                    padding:
+                                        const EdgeInsets.fromLTRB(16, 0, 16, 16),
                                     itemCount: acts.length,
                                     separatorBuilder: (_, __) => const Divider(
                                         height: 1, color: Color(0xFFF1F5F9)),
-                                    itemBuilder: (context, i) =>
-                                        _NearbyTile(
+                                    itemBuilder: (context, i) => _NearbyTile(
                                       act: acts[i],
+                                      categoryName: _categoryName(acts[i].category),
+                                      categoryIcon: _categoryIcon(acts[i].category),
                                       distance: _formatDistance(acts[i]),
-                                      onTap: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              ActDetailScreen(act: acts[i]),
-                                        ),
-                                      ),
+                                      onTap: () => _navigateToDetail(acts[i]),
                                     ),
                                   ),
                           ),
@@ -309,11 +379,23 @@ class _MapScreenState extends State<MapScreen> {
 // ── Category Filter Chip ────────────────────────────────────────────────────────
 
 class _CategoryFilterChip extends StatelessWidget {
+  final List<CategoryConfig> categories;
   final String? selectedCategory;
   final ValueChanged<String?> onChanged;
 
-  const _CategoryFilterChip(
-      {required this.selectedCategory, required this.onChanged});
+  const _CategoryFilterChip({
+    required this.categories,
+    required this.selectedCategory,
+    required this.onChanged,
+  });
+
+  String _label() {
+    if (selectedCategory == null) return 'All Categories';
+    for (final c in categories) {
+      if (c.slug == selectedCategory) return c.name;
+    }
+    return selectedCategory!;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -323,7 +405,10 @@ class _CategoryFilterChip extends StatelessWidget {
           context: context,
           shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-          builder: (_) => _CategoryPicker(selected: selectedCategory),
+          builder: (_) => _CategoryPicker(
+            categories: categories,
+            selected: selectedCategory,
+          ),
         );
         if (result != null) onChanged(result == '__all__' ? null : result);
       },
@@ -337,9 +422,7 @@ class _CategoryFilterChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              selectedCategory == null
-                  ? 'All Categories'
-                  : (_categoryLabels[selectedCategory] ?? selectedCategory!),
+              _label(),
               style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -356,8 +439,10 @@ class _CategoryFilterChip extends StatelessWidget {
 }
 
 class _CategoryPicker extends StatelessWidget {
+  final List<CategoryConfig> categories;
   final String? selected;
-  const _CategoryPicker({required this.selected});
+
+  const _CategoryPicker({required this.categories, required this.selected});
 
   @override
   Widget build(BuildContext context) {
@@ -383,15 +468,16 @@ class _CategoryPicker extends StatelessWidget {
                 : null,
             onTap: () => Navigator.pop(context, '__all__'),
           ),
-          ..._categoryLabels.entries.map((e) => ListTile(
-                leading: Icon(_categoryIcons[e.key] ?? Icons.category_outlined,
+          ...categories.map((cat) => ListTile(
+                leading: Icon(
+                    _slugIcons[cat.slug] ?? Icons.category_outlined,
                     color: const Color(0xFF64748b)),
-                title: Text(e.value,
+                title: Text(cat.name,
                     style: GoogleFonts.dmSans(fontWeight: FontWeight.w500)),
-                trailing: selected == e.key
+                trailing: selected == cat.slug
                     ? const Icon(Icons.check, color: Color(0xFF22c55e), size: 18)
                     : null,
-                onTap: () => Navigator.pop(context, e.key),
+                onTap: () => Navigator.pop(context, cat.slug),
               )),
           const SizedBox(height: 8),
         ],
@@ -400,21 +486,157 @@ class _CategoryPicker extends StatelessWidget {
   }
 }
 
+// ── Act Preview Card (marker tap) ──────────────────────────────────────────────
+
+class _ActPreviewCard extends StatelessWidget {
+  final Act act;
+  final String categoryName;
+  final IconData categoryIcon;
+  final VoidCallback onDismiss;
+  final VoidCallback onTap;
+
+  const _ActPreviewCard({
+    required this.act,
+    required this.categoryName,
+    required this.categoryIcon,
+    required this.onDismiss,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final date = act.createdAt.toLocal();
+    final dateStr = '${date.day} ${_month(date.month)} ${date.year}';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4))
+          ],
+        ),
+        child: Row(
+          children: [
+            // Photo
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(16)),
+              child: act.photoUrl.isNotEmpty
+                  ? Image.network(act.photoUrl,
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _placeholder())
+                  : _placeholder(),
+            ),
+
+            // Info
+            Expanded(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFdcfce7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(categoryIcon, size: 11, color: const Color(0xFF16a34a)),
+                          const SizedBox(width: 4),
+                          Text(categoryName,
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF16a34a))),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(dateStr,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 12, color: const Color(0xFF94a3b8))),
+                    if (act.description.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        act.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 13, color: const Color(0xFF334155)),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            // Dismiss + arrow
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: onDismiss,
+                  child: const Padding(
+                    padding: EdgeInsets.only(top: 8, right: 10),
+                    child: Icon(Icons.close, size: 16, color: Color(0xFF94a3b8)),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8, right: 10),
+                  child: Icon(Icons.arrow_forward_ios,
+                      size: 13, color: Color(0xFF22c55e)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+        width: 90,
+        height: 90,
+        color: const Color(0xFFf1f5f9),
+        child: const Icon(Icons.image_outlined, color: Color(0xFFcbd5e1)),
+      );
+
+  String _month(int m) => const [
+        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ][m];
+}
+
 // ── Nearby Report Tile ─────────────────────────────────────────────────────────
 
 class _NearbyTile extends StatelessWidget {
   final Act act;
+  final String categoryName;
+  final IconData categoryIcon;
   final String distance;
   final VoidCallback onTap;
 
-  const _NearbyTile(
-      {required this.act, required this.distance, required this.onTap});
+  const _NearbyTile({
+    required this.act,
+    required this.categoryName,
+    required this.categoryIcon,
+    required this.distance,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final label = _categoryLabels[act.category] ?? act.category;
-    final icon = _categoryIcons[act.category] ?? Icons.eco_outlined;
-
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -422,25 +644,22 @@ class _NearbyTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            // Category icon circle
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFdcfce7),
+              decoration: const BoxDecoration(
+                color: Color(0xFFdcfce7),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 20, color: const Color(0xFF16a34a)),
+              child: Icon(categoryIcon, size: 20, color: const Color(0xFF16a34a)),
             ),
             const SizedBox(width: 12),
-
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    act.description.isEmpty ? label : act.description,
+                    act.description.isEmpty ? categoryName : act.description,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.dmSans(
@@ -450,16 +669,13 @@ class _NearbyTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    [if (distance.isNotEmpty) distance, label]
-                        .join(' • '),
+                    [if (distance.isNotEmpty) distance, categoryName].join(' • '),
                     style: GoogleFonts.dmSans(
                         fontSize: 12, color: const Color(0xFF94a3b8)),
                   ),
                 ],
               ),
             ),
-
-            // Status badge
             if (act.status != null)
               _StatusPill(status: act.status!)
             else
@@ -484,11 +700,8 @@ class _StatusPill extends StatelessWidget {
       'pending' => ('Pending', const Color(0xFF3B82F6)),
       _ => (status, const Color(0xFF64748B)),
     };
-
-    return Text(
-      label,
-      style: GoogleFonts.dmSans(
-          fontSize: 12, fontWeight: FontWeight.w600, color: fg),
-    );
+    return Text(label,
+        style: GoogleFonts.dmSans(
+            fontSize: 12, fontWeight: FontWeight.w600, color: fg));
   }
 }

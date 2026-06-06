@@ -130,6 +130,14 @@ Future<List<Act>> getActs() async {
   return list.map((e) => Act.fromJson(e as Map<String, dynamic>)).toList();
 }
 
+Future<List<Act>> getAllActs() async {
+  debugPrint('[api] GET ${ApiEndpoints.allActs}');
+  final res = await _authGet(ApiEndpoints.allActs);
+  if (res.statusCode != 200) throw Exception('Failed to fetch all acts');
+  final list = jsonDecode(res.body) as List<dynamic>;
+  return list.map((e) => Act.fromJson(e as Map<String, dynamic>)).toList();
+}
+
 Future<Map<String, dynamic>> getPresignedUrl(String filename) async {
   debugPrint('[api] POST ${ApiEndpoints.presign}');
   final res = await _authPost(ApiEndpoints.presign, {'filename': filename, 'contentType': 'image/jpeg'});

@@ -14,6 +14,7 @@ class ApiEndpoints {
 
   // Acts
   static String get acts        => '$_base/api/acts';
+  static String get allActs     => '$_base/api/acts/all';
 
   // Uploads
   static String get presign     => '$_base/api/uploads/presign';
