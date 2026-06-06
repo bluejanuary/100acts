@@ -9,6 +9,7 @@ const _categoryLabels = {
   'wildlife': 'Wildlife',
   'recycling': 'Recycling',
   'litter_cleanup': 'Litter Cleanup',
+  'road_street': 'Road & Street',
 };
 
 const _categoryIcons = {
@@ -16,6 +17,7 @@ const _categoryIcons = {
   'wildlife': Icons.pets_outlined,
   'recycling': Icons.recycling_outlined,
   'litter_cleanup': Icons.delete_outline,
+  'road_street': Icons.warning_amber_rounded,
 };
 
 class ActsScreen extends StatefulWidget {
@@ -29,6 +31,7 @@ class _ActsScreenState extends State<ActsScreen> {
   List<Act> _acts = [];
   bool _loading = true;
   String? _error;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -48,12 +51,27 @@ class _ActsScreenState extends State<ActsScreen> {
     }
   }
 
+  List<Act> get _filtered {
+    if (_searchQuery.isEmpty) return _acts;
+    final q = _searchQuery.toLowerCase();
+    return _acts.where((a) =>
+        a.description.toLowerCase().contains(q) ||
+        (_categoryLabels[a.category] ?? a.category).toLowerCase().contains(q)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFf8fafc),
+      backgroundColor: const Color(0xFFf0fdf4),
       appBar: AppBar(
-        title: const Text('My Acts'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          'My Acts',
+          style: GoogleFonts.dmSans(
+              fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF0f172a)),
+        ),
         actions: [
           if (_acts.isNotEmpty)
             Padding(
@@ -68,10 +86,7 @@ class _ActsScreenState extends State<ActsScreen> {
                   child: Text(
                     '${_acts.length} logged',
                     style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF16a34a),
-                    ),
+                        fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF16a34a)),
                   ),
                 ),
               ),
@@ -108,34 +123,111 @@ class _ActsScreenState extends State<ActsScreen> {
                             child: const Icon(Icons.eco_outlined, size: 40, color: Color(0xFF22c55e)),
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            'No acts yet',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0f172a),
-                            ),
-                          ),
+                          Text('No acts yet',
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF0f172a))),
                           const SizedBox(height: 6),
-                          Text(
-                            'Log your first act of kindness!',
-                            style: GoogleFonts.dmSans(color: Colors.grey, fontSize: 14),
-                          ),
+                          Text('Log your first act of kindness!',
+                              style: GoogleFonts.dmSans(color: Colors.grey, fontSize: 14)),
                         ],
                       ),
                     )
                   : RefreshIndicator(
                       onRefresh: _load,
                       color: const Color(0xFF22c55e),
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                        itemCount: _acts.length,
-                        itemBuilder: (context, i) => _ActCard(act: _acts[i]),
+                      child: CustomScrollView(
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                              child: _SearchBar(
+                                onChanged: (q) => setState(() => _searchQuery = q),
+                              ),
+                            ),
+                          ),
+                          _filtered.isEmpty
+                              ? SliverFillRemaining(
+                                  child: Center(
+                                    child: Text('No results for "$_searchQuery"',
+                                        style: GoogleFonts.dmSans(color: const Color(0xFF94a3b8))),
+                                  ),
+                                )
+                              : SliverPadding(
+                                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                                  sliver: SliverList(
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, i) => _ActCard(act: _filtered[i]),
+                                      childCount: _filtered.length,
+                                    ),
+                                  ),
+                                ),
+                        ],
                       ),
                     ),
     );
   }
 }
+
+// ── Search Bar ─────────────────────────────────────────────────────────────────
+
+class _SearchBar extends StatelessWidget {
+  final ValueChanged<String> onChanged;
+  const _SearchBar({required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              onChanged: onChanged,
+              style: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF0f172a)),
+              decoration: InputDecoration(
+                hintText: 'Search your reports...',
+                hintStyle: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF94a3b8)),
+                prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF94a3b8)),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.tune_rounded, size: 18, color: Color(0xFF64748b)),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Act Card ───────────────────────────────────────────────────────────────────
 
 class _ActCard extends StatelessWidget {
   final Act act;
@@ -161,7 +253,7 @@ class _ActCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -170,12 +262,9 @@ class _ActCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Photo
+            // ── Photo ────────────────────────────────────────────────────────
             ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
-              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
               child: Stack(
                 children: [
                   act.photoUrl.isNotEmpty
@@ -187,7 +276,6 @@ class _ActCard extends StatelessWidget {
                           errorBuilder: (_, __, ___) => _photoPlaceholder(icon),
                         )
                       : _photoPlaceholder(icon),
-                  // Multi-photo badge
                   if (hasMultiple)
                     Positioned(
                       top: 10,
@@ -203,10 +291,9 @@ class _ActCard extends StatelessWidget {
                           children: [
                             const Icon(Icons.photo_library_outlined, color: Colors.white, size: 12),
                             const SizedBox(width: 4),
-                            Text(
-                              '${act.photoUrls.length}',
-                              style: GoogleFonts.dmSans(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                            ),
+                            Text('${act.photoUrls.length}',
+                                style: GoogleFonts.dmSans(
+                                    color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                           ],
                         ),
                       ),
@@ -215,7 +302,7 @@ class _ActCard extends StatelessWidget {
               ),
             ),
 
-            // Info
+            // ── Info ─────────────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
@@ -223,8 +310,9 @@ class _ActCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
+                      // Category badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: const Color(0xFFdcfce7),
                           borderRadius: BorderRadius.circular(20),
@@ -232,37 +320,38 @@ class _ActCard extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(icon, size: 12, color: const Color(0xFF16a34a)),
+                            Icon(icon, size: 11, color: const Color(0xFF16a34a)),
                             const SizedBox(width: 4),
-                            Text(
-                              label,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF16a34a),
-                              ),
-                            ),
+                            Text(label,
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF16a34a))),
                           ],
                         ),
                       ),
                       const Spacer(),
-                      Text(
-                        dateStr,
-                        style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF94a3b8)),
-                      ),
+                      Text(dateStr,
+                          style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF94a3b8))),
                     ],
                   ),
                   if (act.description.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Text(
-                      act.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        color: const Color(0xFF334155),
-                        height: 1.4,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            act.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.dmSans(
+                                fontSize: 14, color: const Color(0xFF334155), height: 1.4),
+                          ),
+                        ),
+                        if (act.status != null) ...[
+                          const SizedBox(width: 8),
+                          _StatusBadge(status: act.status!),
+                        ],
+                      ],
                     ),
                   ],
                 ],
@@ -277,13 +366,42 @@ class _ActCard extends StatelessWidget {
   Widget _photoPlaceholder(IconData icon) => Container(
         height: 180,
         color: const Color(0xFFf1f5f9),
-        child: Center(
-          child: Icon(icon, size: 48, color: const Color(0xFFcbd5e1)),
-        ),
+        child: Center(child: Icon(icon, size: 48, color: const Color(0xFFcbd5e1))),
       );
 
   String _month(int m) => const [
         '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
       ][m];
+}
+
+// ── Status Badge ───────────────────────────────────────────────────────────────
+
+class _StatusBadge extends StatelessWidget {
+  final String status;
+  const _StatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, bg, fg, icon) = switch (status.toLowerCase()) {
+      'resolved' => ('Resolved', const Color(0xFFdcfce7), const Color(0xFF16a34a), Icons.check_circle_outline),
+      'in_progress' || 'in progress' => ('In Progress', const Color(0xFFFFF7ED), const Color(0xFFD97706), Icons.timelapse),
+      'pending' => ('Pending', const Color(0xFFEFF6FF), const Color(0xFF3B82F6), Icons.schedule),
+      _ => (status, const Color(0xFFF1F5F9), const Color(0xFF64748B), Icons.info_outline),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: fg),
+          const SizedBox(width: 4),
+          Text(label,
+              style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
+        ],
+      ),
+    );
+  }
 }

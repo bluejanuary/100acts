@@ -7,6 +7,7 @@ class Act {
   final double lat;
   final double long;
   final DateTime createdAt;
+  final String? status;
 
   Act({
     required this.id,
@@ -17,6 +18,7 @@ class Act {
     required this.lat,
     required this.long,
     required this.createdAt,
+    this.status,
   });
 
   factory Act.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@ class Act {
       lat: (json['lat'] as num).toDouble(),
       long: (json['long'] as num).toDouble(),
       createdAt: DateTime.parse(json['createdAt']),
+      status: json['status'] as String?,
     );
   }
 }
