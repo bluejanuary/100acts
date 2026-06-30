@@ -18,4 +18,16 @@ class ApiEndpoints {
 
   // Uploads
   static String get presign     => '$_base/api/uploads/presign';
+
+  // Act by ID (for update / detail fetch)
+  static String actById(String id) => '$_base/api/acts/$id';
+
+  // Summary: minimal {id,lat,long,category} for the visible map bounds
+  static String actsSummary({
+    required double swLat,
+    required double swLng,
+    required double neLat,
+    required double neLng,
+  }) =>
+      '$_base/api/acts/summary?swLat=$swLat&swLng=$swLng&neLat=$neLat&neLng=$neLng';
 }

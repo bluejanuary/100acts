@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/act.dart';
+import '../models/act_summary.dart';
 import '../models/user.dart';
 import '../models/system_config.dart';
 import 'api_endpoints.dart';
@@ -82,6 +83,21 @@ Future<http.Response> _authPost(String url, Object body) async {
   return res;
 }
 
+Future<http.Response> _authPatch(String url, Object body) async {
+  var headers = await _authHeaders();
+  var res = await http.patch(Uri.parse(url), headers: headers, body: jsonEncode(body));
+  if (res.statusCode == 401) {
+    final refreshed = await _tryRefresh();
+    if (refreshed) {
+      headers = await _authHeaders();
+      res = await http.patch(Uri.parse(url), headers: headers, body: jsonEncode(body));
+    } else {
+      await _handleSessionExpired();
+    }
+  }
+  return res;
+}
+
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 Future<User> getMe() async {
@@ -153,6 +169,27 @@ Future<List<Act>> getAllActs() async {
   return list.map((e) => Act.fromJson(e as Map<String, dynamic>)).toList();
 }
 
+Future<List<ActSummary>> getActsSummary({
+  required double swLat,
+  required double swLng,
+  required double neLat,
+  required double neLng,
+}) async {
+  final url = ApiEndpoints.actsSummary(swLat: swLat, swLng: swLng, neLat: neLat, neLng: neLng);
+  debugPrint('[api] GET $url');
+  final res = await _authGet(url);
+  if (res.statusCode != 200) throw Exception('Failed to fetch acts summary');
+  final list = jsonDecode(res.body) as List<dynamic>;
+  return list.map((e) => ActSummary.fromJson(e as Map<String, dynamic>)).toList();
+}
+
+Future<Act> getActById(String id) async {
+  debugPrint('[api] GET ${ApiEndpoints.actById(id)}');
+  final res = await _authGet(ApiEndpoints.actById(id));
+  if (res.statusCode != 200) throw Exception('Failed to fetch act');
+  return Act.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+}
+
 Future<Map<String, dynamic>> getPresignedUrl(String filename) async {
   debugPrint('[api] POST ${ApiEndpoints.presign}');
   final res = await _authPost(ApiEndpoints.presign, {'filename': filename, 'contentType': 'image/jpeg'});
@@ -168,6 +205,26 @@ Future<void> uploadToS3(String uploadUrl, List<int> bytes) async {
     body: bytes,
   );
   if (res.statusCode != 200) throw Exception('Failed to upload photo');
+}
+
+Future<void> updateAct(String id, {
+  required String category,
+  required String description,
+  required List<String> photoUrls,
+}) async {
+  debugPrint('[api] PATCH ${ApiEndpoints.actById(id)}');
+  final res = await _authPatch(ApiEndpoints.actById(id), {
+    'category': category,
+    'description': description,
+    'photoUrls': photoUrls,
+  });
+  if (res.statusCode != 200) {
+    String errorMsg = 'Failed to update act';
+    try {
+      errorMsg = jsonDecode(res.body)['error'] ?? errorMsg;
+    } catch (_) {}
+    throw Exception(errorMsg);
+  }
 }
 
 Future<void> createAct({

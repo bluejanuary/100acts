@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/act.dart';
+import 'edit_act_screen.dart';
 
 const _categoryLabels = {
   'tree_mangrove': 'Tree / Mangrove',
   'wildlife': 'Wildlife',
   'recycling': 'Recycling',
   'litter_cleanup': 'Litter Cleanup',
+  'road_street': 'Road & Street',
 };
 
 const _categoryIcons = {
@@ -15,21 +17,50 @@ const _categoryIcons = {
   'wildlife': Icons.pets_outlined,
   'recycling': Icons.recycling_outlined,
   'litter_cleanup': Icons.delete_outline,
+  'road_street': Icons.warning_amber_rounded,
 };
 
-class ActDetailScreen extends StatelessWidget {
+class ActDetailScreen extends StatefulWidget {
   final Act act;
   const ActDetailScreen({super.key, required this.act});
 
   @override
+  State<ActDetailScreen> createState() => _ActDetailScreenState();
+}
+
+class _ActDetailScreenState extends State<ActDetailScreen> {
+  bool _edited = false;
+
+  Future<void> _openEdit() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => EditActScreen(act: widget.act)),
+    );
+    if (result == true) {
+      setState(() => _edited = true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Act updated')),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final act = widget.act;
     final label = _categoryLabels[act.category] ?? act.category;
     final icon = _categoryIcons[act.category] ?? Icons.eco_outlined;
     final date = act.createdAt.toLocal();
     final dateStr =
         '${date.day} ${_month(date.month)} ${date.year}  ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) Navigator.pop(context, _edited);
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFf8fafc),
       body: CustomScrollView(
         slivers: [
@@ -44,10 +75,22 @@ class ActDetailScreen extends StatelessWidget {
                 backgroundColor: Colors.black45,
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(context, _edited),
                 ),
               ),
             ),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: CircleAvatar(
+                  backgroundColor: Colors.black45,
+                  child: IconButton(
+                    icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 20),
+                    onPressed: _openEdit,
+                  ),
+                ),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: act.photoUrls.isNotEmpty
                   ? _PhotoCarousel(urls: act.photoUrls)
@@ -175,6 +218,7 @@ class ActDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 

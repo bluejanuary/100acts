@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/act.dart';
 import '../services/api.dart';
 import 'act_detail_screen.dart';
@@ -158,7 +159,10 @@ class _ActsScreenState extends State<ActsScreen> {
                                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                                   sliver: SliverList(
                                     delegate: SliverChildBuilderDelegate(
-                                      (context, i) => _ActCard(act: _filtered[i]),
+                                      (context, i) => _ActCard(
+                                        act: _filtered[i],
+                                        onEditDone: _load,
+                                      ),
                                       childCount: _filtered.length,
                                     ),
                                   ),
@@ -229,11 +233,37 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
+// ── Share helper ──────────────────────────────────────────────────────────────
+
+void _shareAct(BuildContext context, Act act, String categoryLabel, String dateStr) {
+  final buffer = StringBuffer();
+  buffer.writeln('$categoryLabel reported via 100 Acts!');
+  if (act.description.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln(act.description);
+  }
+  buffer.writeln();
+  buffer.writeln('Logged on $dateStr');
+  if (act.photoUrl.isNotEmpty) {
+    buffer.writeln();
+    buffer.write(act.photoUrl);
+  }
+
+  final box = context.findRenderObject() as RenderBox?;
+  Share.share(
+    buffer.toString().trim(),
+    sharePositionOrigin: box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null,
+  );
+}
+
 // ── Act Card ───────────────────────────────────────────────────────────────────
 
 class _ActCard extends StatelessWidget {
   final Act act;
-  const _ActCard({required this.act});
+  final VoidCallback? onEditDone;
+  const _ActCard({required this.act, this.onEditDone});
 
   @override
   Widget build(BuildContext context) {
@@ -244,10 +274,13 @@ class _ActCard extends StatelessWidget {
     final hasMultiple = act.photoUrls.length > 1;
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => ActDetailScreen(act: act)),
-      ),
+      onTap: () async {
+        final edited = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(builder: (_) => ActDetailScreen(act: act)),
+        );
+        if (edited == true) onEditDone?.call();
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
@@ -333,6 +366,14 @@ class _ActCard extends StatelessWidget {
                       const Spacer(),
                       Text(dateStr,
                           style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF94a3b8))),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => _shareAct(context, act, label, dateStr),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(Icons.share_outlined, size: 16, color: Color(0xFF94a3b8)),
+                        ),
+                      ),
                     ],
                   ),
                   if (act.description.isNotEmpty) ...[

@@ -16,6 +16,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   User? _user;
   int _actsCount = 0;
+  int _totalActsCount = 0;
 
   @override
   void initState() {
@@ -23,6 +24,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     UserStorage.get().then((u) => setState(() => _user = u));
     getActs().then((acts) {
       if (mounted) setState(() => _actsCount = acts.length);
+    }).catchError((_) {});
+    getAllActs().then((acts) {
+      if (mounted) setState(() => _totalActsCount = acts.length);
     }).catchError((_) {});
   }
 
@@ -117,14 +121,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.description_outlined,
                       iconColor: const Color(0xFF22c55e),
                       value: '$_actsCount',
-                      label: 'Reports\nSubmitted',
+                      label: 'My\nActs',
                     ),
                     _divider(),
                     _StatItem(
                       icon: Icons.eco_outlined,
                       iconColor: const Color(0xFF22c55e),
-                      value: '0',
-                      label: 'Issues\nResolved',
+                      value: '$_totalActsCount',
+                      label: 'Total\nActs',
                     ),
                     _divider(),
                     _StatItem(
