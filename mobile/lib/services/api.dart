@@ -7,6 +7,10 @@ import '../models/system_config.dart';
 import 'api_endpoints.dart';
 import 'token.dart';
 
+// ─── Session expiry callback ─────────────────────────────────────────────────
+
+VoidCallback? onSessionExpired;
+
 // ─── Auth headers ────────────────────────────────────────────────────────────
 
 Future<Map<String, String>> _authHeaders() async {
@@ -19,6 +23,8 @@ Future<Map<String, String>> _authHeaders() async {
 }
 
 // ─── Token refresh ───────────────────────────────────────────────────────────
+
+Future<bool> tryRefresh() => _tryRefresh();
 
 Future<bool> _tryRefresh() async {
   final refreshToken = await TokenStorage.getRefreshToken();
@@ -41,6 +47,11 @@ Future<bool> _tryRefresh() async {
 
 // ─── Authenticated request helpers ───────────────────────────────────────────
 
+Future<void> _handleSessionExpired() async {
+  await TokenStorage.clear();
+  onSessionExpired?.call();
+}
+
 Future<http.Response> _authGet(String url) async {
   var headers = await _authHeaders();
   var res = await http.get(Uri.parse(url), headers: headers);
@@ -49,6 +60,8 @@ Future<http.Response> _authGet(String url) async {
     if (refreshed) {
       headers = await _authHeaders();
       res = await http.get(Uri.parse(url), headers: headers);
+    } else {
+      await _handleSessionExpired();
     }
   }
   return res;
@@ -62,6 +75,8 @@ Future<http.Response> _authPost(String url, Object body) async {
     if (refreshed) {
       headers = await _authHeaders();
       res = await http.post(Uri.parse(url), headers: headers, body: jsonEncode(body));
+    } else {
+      await _handleSessionExpired();
     }
   }
   return res;

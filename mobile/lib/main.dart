@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/token.dart';
 import 'services/api.dart';
 import 'services/system_config_storage.dart';
+import 'services/user_storage.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/upload_screen.dart';
@@ -29,13 +30,42 @@ class App extends StatefulWidget {
   State<App> createState() => _AppState();
 }
 
-class _AppState extends State<App> {
+class _AppState extends State<App> with WidgetsBindingObserver {
   bool? _authenticated;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    onSessionExpired = _forceLogout;
     _init();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _authenticated == true) {
+      _refreshOnResume();
+    }
+  }
+
+  Future<void> _refreshOnResume() async {
+    final refreshed = await tryRefresh();
+    if (!refreshed) {
+      final token = await TokenStorage.getToken();
+      if (token == null) _forceLogout();
+    }
+  }
+
+  void _forceLogout() {
+    TokenStorage.clear();
+    UserStorage.clear();
+    if (mounted) setState(() => _authenticated = false);
   }
 
   Future<void> _init() async {
